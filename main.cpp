@@ -14,13 +14,13 @@
 
 enum editorKey
 {
-	ARROW_UP = 'w',
+	ARROW_UP = 1000,
 
-	ARROW_DOWN = 's',
+	ARROW_DOWN,
 
-	ARROW_LEFT = 'a',
+	ARROW_LEFT,
 
-	ARROW_RIGHT = 'd',
+	ARROW_RIGHT,
 }; 
 
 //DATA
@@ -75,7 +75,7 @@ void enableRawMode()
 	}
 }
 
-char editorReadKey()
+int editorReadKey()
 {
 	char c; 
 	int nread; 
@@ -228,31 +228,44 @@ void editorClearScreen()
 
 
 //INPUTS
-void editorMoveCursor(char key)
+void editorMoveCursor(int key)
 {
 	switch (key) 
 	{
-
 		case ARROW_UP:
-			E.cy -= 1;
+			if (E.cy != 0) 
+			{
+				E.cy -= 1;
+			}
 			break;
 
 		case ARROW_LEFT:
-			E.cx -= 1; 
+			if (E.screencolumns != 0) 
+			{
+
+				E.cx -= 1; 
+			
+			}
 			break;
 
 		case ARROW_DOWN: 
-			E.cy += 1; 
+			if (E.cy != E.screenrows - 1) 
+			{
+				E.cy += 1; 
+			}
 			break;
 
 		case ARROW_RIGHT:
-			E.cx += 1; 
+			if (E.cy != E.screencolumns) 
+			{
+				E.cx += 1; 
+			}
 			break;
 	}
 }
 void editorProcessKeyPress()
 {
-	char c = editorReadKey();
+	int c = editorReadKey();
 
 	switch (c) 
 	{
@@ -262,16 +275,14 @@ void editorProcessKeyPress()
 			exit(0); 
 			break;
 
-		case 'w':
-		case 'a':
-		case 's':
-		case 'd':
+		case ARROW_UP:
+		case ARROW_DOWN:
+		case ARROW_LEFT:
+		case ARROW_RIGHT:
 			editorMoveCursor(c);
 			break;
 	}
 }
-
-
 
 
 int getWindowSize(int* row, int* column)
