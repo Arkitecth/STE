@@ -10,10 +10,12 @@
 
 //DEFINES
 #define CTRL_KEY(k) ((k) & 0x1f)
+#define VERSION "1.0"
 
 //DATA
 struct editorConfig
 {
+	int cx, cy; 
 	int screenrows; 
 	int screencolumns; 
 	struct termios originTerm; 
@@ -147,6 +149,26 @@ void editorDrawRows(struct abuf* buf)
 	{
 		abAppend(buf, "~", 1); 
 		abAppend(buf, "\x1b[K", 3);
+		if (y == E.screenrows / 3) 
+		{
+			char welcomeMessage[80];
+			int welcomeLen = snprintf(welcomeMessage, sizeof(welcomeMessage), "Hex Editor -- version %s", VERSION);
+			if (welcomeLen > E.screencolumns) 
+			{
+				welcomeLen = E.screencolumns;
+			}
+			int padding = (E.screencolumns - welcomeLen) / 2;
+			if (padding) 
+			{
+				abAppend(buf, "~", 1); 
+				padding -= 1;
+			}
+			while (padding--) 
+			{
+				abAppend(buf, " ", 1);
+			}
+			abAppend(buf, welcomeMessage, welcomeLen);
+		}
 		if (y < E.screenrows - 1) 
 		{
 			abAppend(buf, "\r\n", 2); 
@@ -163,7 +185,10 @@ void editorClearScreen()
 	abAppend(&buf, "\x1b[H",  3); 
 
 	editorDrawRows(&buf); 
-	abAppend(&buf, "\x1b[H",  3); 
+	char snBuffer[32];
+	snprintf(snBuffer, sizeof(snBuffer), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);  
+	abAppend(&buf, snBuffer, strlen(snBuffer));
+
 	abAppend(&buf, "\x1b[?25h", 6);
 	write(STDOUT_FILENO, buf.b, buf.len);
 	abFree(&buf);
@@ -172,6 +197,28 @@ void editorClearScreen()
 
 
 //INPUTS
+void editorMoveCursor(char key)
+{
+	switch (key) 
+	{
+
+		case 'w':
+			E.cy -= 1;
+			break;
+
+		case 'a':
+			E.cx -= 1; 
+			break;
+
+		case 's': 
+			E.cy += 1; 
+			break;
+
+		case 'd':
+			E.cx += 1; 
+			break;
+	}
+}
 void editorProcessKeyPress()
 {
 	char c = editorReadKey();
@@ -179,11 +226,21 @@ void editorProcessKeyPress()
 	switch (c) 
 	{
 		case CTRL_KEY('q'):
-			editorClearScreen();
+			write(STDOUT_FILENO, "\x1b[2J", 4);
+			write(STDOUT_FILENO, "\x1b[H", 3); 
 			exit(0); 
+			break;
+
+		case 'w':
+		case 'a':
+		case 's':
+		case 'd':
+			editorMoveCursor(c);
 			break;
 	}
 }
+
+
 
 
 int getWindowSize(int* row, int* column)
@@ -208,7 +265,9 @@ int getWindowSize(int* row, int* column)
 //INIT
 void initEditor()
 {
-	getWindowSize(&E.screenrows, &E.screencolumns); 
+	E.cx = 0;
+	E.cy = 0;
+	if(getWindowSize(&E.screenrows, &E.screencolumns) == -1 ) die("get window size"); 
 }
 
 int main()
