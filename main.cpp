@@ -1,7 +1,9 @@
 #include <cctype>
 #include <cerrno>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <termios.h>
 #include <sys/ioctl.h>
 #include "unistd.h"
@@ -108,17 +110,46 @@ int getCursorPosition(int* rows, int* columns)
 	return -1;
 }
 
+// Append Buffer
+struct abuf 
+{
+	char* b; 
+	int len; 
+};
+#define ABUF_INIT {NULL, 0}
+
+
+void abAppend(struct abuf* buf, const char* s, int len)
+{
+	char* new_s = reinterpret_cast<char*>(realloc(buf->b, buf->len + len)); 
+	if (new_s == NULL) 
+	{
+		return;
+	}
+	memcpy(&new_s[buf->len], s, len);
+	buf->b = reinterpret_cast<char*>(new_s);
+	buf->len += len;
+
+}
+
+
+void abFree(struct abuf* buf)
+{
+	free(buf->b);
+}
+
 
 
 // OUTPUT
-void editorDrawRows()
+void editorDrawRows(struct abuf* buf)
 {
 	for(int y = 0; y < E.screenrows; y++)
 	{
-		write(STDOUT_FILENO,  "~", 1); 
+		abAppend(buf, "~", 1); 
+		abAppend(buf, "\x1b[K", 3);
 		if (y < E.screenrows - 1) 
 		{
-			write(STDOUT_FILENO, "\r\n", 2); 
+			abAppend(buf, "\r\n", 2); 
 		}
 	}
 }
@@ -127,11 +158,15 @@ void editorDrawRows()
 
 void editorClearScreen()
 {
-	write(STDOUT_FILENO, "\x1b[2J", 4); 
-	write(STDOUT_FILENO, "\x1b[H", 3); 
+	struct abuf buf = ABUF_INIT;
+	abAppend(&buf, "\x1b[?25l", 6);
+	abAppend(&buf, "\x1b[H",  3); 
 
-	editorDrawRows(); 
-	write(STDOUT_FILENO, "\x1b[H", 3); 
+	editorDrawRows(&buf); 
+	abAppend(&buf, "\x1b[H",  3); 
+	abAppend(&buf, "\x1b[?25h", 6);
+	write(STDOUT_FILENO, buf.b, buf.len);
+	abFree(&buf);
 }
 
 
@@ -144,7 +179,7 @@ void editorProcessKeyPress()
 	switch (c) 
 	{
 		case CTRL_KEY('q'):
-			editorDrawRows();
+			editorClearScreen();
 			exit(0); 
 			break;
 	}
